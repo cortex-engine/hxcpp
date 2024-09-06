@@ -64,16 +64,27 @@
 
    #define HX_LOCAL_STACK_FRAME(a,b,c,d,e,f,g,h) static HX_DEFINE_STACK_FRAME(a,b,c,d,e,f,g,h)
 
-   // Haxe < 330 does not create position pointers, and we must use a local one.
-   // This code will hst the 'HX_STACK_FRAME' macro
-   #define HX_STACK_FRAME(className, functionName, classFunctionHash, fullName,fileName, lineNumber, fileHash ) \
-      HX_DEFINE_STACK_FRAME(__stackPosition, className, functionName, classFunctionHash, fullName,fileName, lineNumber, fileHash ) \
-      ::hx::StackFrame _hx_stackframe(&__stackPosition);
+   #ifdef HXCPP_TRACY
+      // Haxe < 330 does not create position pointers, and we must use a local one.
+      // This code will hst the 'HX_STACK_FRAME' macro
+      #define HX_STACK_FRAME(className, functionName, classFunctionHash, fullName,fileName, lineNumber, fileHash ) \
+         HX_DEFINE_STACK_FRAME(__stackPosition, className, functionName, classFunctionHash, fullName,fileName, lineNumber, fileHash ) \
+         ::hx::StackFrame _hx_stackframe(&__stackPosition); ZoneScoped;
 
-   // Newer code will use the HX_STACKFRAME macro
-   #define HX_STACKFRAME(pos) ::hx::StackFrame _hx_stackframe(pos);
-   #define HX_GC_STACKFRAME(pos) ::hx::StackFrame _hx_stackframe(pos);
+      // Newer code will use the HX_STACKFRAME macro
+      #define HX_STACKFRAME(pos) ::hx::StackFrame _hx_stackframe(pos); ZoneScoped;
+      #define HX_GC_STACKFRAME(pos) ::hx::StackFrame _hx_stackframe(pos); ZoneScoped;
+   #else
+      // Haxe < 330 does not create position pointers, and we must use a local one.
+      // This code will hst the 'HX_STACK_FRAME' macro
+      #define HX_STACK_FRAME(className, functionName, classFunctionHash, fullName,fileName, lineNumber, fileHash ) \
+         HX_DEFINE_STACK_FRAME(__stackPosition, className, functionName, classFunctionHash, fullName,fileName, lineNumber, fileHash ) \
+         ::hx::StackFrame _hx_stackframe(&__stackPosition);
 
+      // Newer code will use the HX_STACKFRAME macro
+      #define HX_STACKFRAME(pos) ::hx::StackFrame _hx_stackframe(pos);
+      #define HX_GC_STACKFRAME(pos) ::hx::StackFrame _hx_stackframe(pos);
+   #endif 
    // Must record the stack state at the catch
    #define HX_STACK_BEGIN_CATCH __hxcpp_stack_begin_catch();
    #define HX_JUST_GC_STACKFRAME ::hx::JustGcStackFrame _hx_stackframe;
