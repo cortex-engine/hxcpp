@@ -2,6 +2,7 @@
 #define HX_STACK_CONTEXT_H
 
 #include "QuickVec.h"
+#include "../../src/hx/tracy/tracy/TracyC.h"
 
 #ifdef HXCPP_SINGLE_THREADED_APP
   #define HX_CTX_GET ::hx::gMainThreadContext
@@ -64,27 +65,16 @@
 
    #define HX_LOCAL_STACK_FRAME(a,b,c,d,e,f,g,h) static HX_DEFINE_STACK_FRAME(a,b,c,d,e,f,g,h)
 
-   #ifdef HXCPP_TRACY
-      // Haxe < 330 does not create position pointers, and we must use a local one.
-      // This code will hst the 'HX_STACK_FRAME' macro
-      #define HX_STACK_FRAME(className, functionName, classFunctionHash, fullName,fileName, lineNumber, fileHash ) \
-         HX_DEFINE_STACK_FRAME(__stackPosition, className, functionName, classFunctionHash, fullName,fileName, lineNumber, fileHash ) \
-         ::hx::StackFrame _hx_stackframe(&__stackPosition); ZoneScoped;
+   // Haxe < 330 does not create position pointers, and we must use a local one.
+   // This code will hst the 'HX_STACK_FRAME' macro
+   #define HX_STACK_FRAME(className, functionName, classFunctionHash, fullName,fileName, lineNumber, fileHash ) \
+      HX_DEFINE_STACK_FRAME(__stackPosition, className, functionName, classFunctionHash, fullName,fileName, lineNumber, fileHash ) \
+      ::hx::StackFrame _hx_stackframe(&__stackPosition);
 
-      // Newer code will use the HX_STACKFRAME macro
-      #define HX_STACKFRAME(pos) ::hx::StackFrame _hx_stackframe(pos); ZoneScoped;
-      #define HX_GC_STACKFRAME(pos) ::hx::StackFrame _hx_stackframe(pos); ZoneScoped;
-   #else
-      // Haxe < 330 does not create position pointers, and we must use a local one.
-      // This code will hst the 'HX_STACK_FRAME' macro
-      #define HX_STACK_FRAME(className, functionName, classFunctionHash, fullName,fileName, lineNumber, fileHash ) \
-         HX_DEFINE_STACK_FRAME(__stackPosition, className, functionName, classFunctionHash, fullName,fileName, lineNumber, fileHash ) \
-         ::hx::StackFrame _hx_stackframe(&__stackPosition);
-
-      // Newer code will use the HX_STACKFRAME macro
-      #define HX_STACKFRAME(pos) ::hx::StackFrame _hx_stackframe(pos);
-      #define HX_GC_STACKFRAME(pos) ::hx::StackFrame _hx_stackframe(pos);
-   #endif 
+   // Newer code will use the HX_STACKFRAME macro
+   #define HX_STACKFRAME(pos) ::hx::StackFrame _hx_stackframe(pos);
+   #define HX_GC_STACKFRAME(pos) ::hx::StackFrame _hx_stackframe(pos);
+   
    // Must record the stack state at the catch
    #define HX_STACK_BEGIN_CATCH __hxcpp_stack_begin_catch();
    #define HX_JUST_GC_STACKFRAME ::hx::JustGcStackFrame _hx_stackframe;
@@ -635,6 +625,10 @@ public:
    #ifdef HXCPP_STACK_TRACE // {
    const StackPosition *position;
 
+      #ifdef HXCPP_TRACY
+         TracyCZoneCtx tctx;
+      #endif
+
       #ifdef HXCPP_STACK_LINE
          // Current line number, changes during the lifetime of the stack frame.
          // Only updated if HXCPP_STACK_LINE is defined.
@@ -668,6 +662,20 @@ public:
 
           ctx =  HX_CTX_GET;
           ctx->pushFrame(this);
+
+         #ifdef HXCPP_TRACY
+            auto srcloc =
+               ___tracy_alloc_srcloc(
+                  lineNumber,
+                  position->fileName,
+                  strlen(position->fileName),
+                  position->fullName,
+                  strlen(position->fullName),
+                  0
+               );
+               
+            tctx = ___tracy_emit_zone_begin_alloc_callstack(srcloc, ctx->getDepth(), true);
+         #endif
        }
 
 
@@ -675,6 +683,10 @@ public:
        // stack frames for the current thread
        ~StackFrame()
        {
+         #ifdef HXCPP_TRACY
+            ___tracy_emit_zone_end(tctx);
+         #endif
+
           ctx->popFrame(this);
        }
 
