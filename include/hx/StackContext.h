@@ -625,7 +625,7 @@ public:
    #ifdef HXCPP_STACK_TRACE // {
    const StackPosition *position;
 
-      #ifdef HXCPP_TRACY
+      #if defined(HXCPP_TRACY) && !defined(HXCPP_TRACY_DISABLE_STACKS)
          TracyCZoneCtx tctx;
       #endif
 
@@ -663,7 +663,7 @@ public:
           ctx =  HX_CTX_GET;
           ctx->pushFrame(this);
 
-         #ifdef HXCPP_TRACY
+         #if defined(HXCPP_TRACY) && !defined(HXCPP_TRACY_DISABLE_STACKS)
             auto srcloc =
                ___tracy_alloc_srcloc(
                   lineNumber,
@@ -683,7 +683,7 @@ public:
        // stack frames for the current thread
        ~StackFrame()
        {
-         #ifdef HXCPP_TRACY
+         #if defined(HXCPP_TRACY) && !defined(HXCPP_TRACY_DISABLE_STACKS)
             ___tracy_emit_zone_end(tctx);
          #endif
 
